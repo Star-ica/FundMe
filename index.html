@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Commons — Campaign Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#FFFFFF;
+    --bg-subtle:#F6F7F9;
+    --ink:#14171F;
+    --ink-soft:#5B6472;
+    --ink-faint:#8991A0;
+    --border:#E2E4E9;
+    --border-strong:#CBCFD6;
+    --accent:#1D4ED8;
+    --accent-ink:#1E3A8A;
+    --accent-soft:#EBF0FE;
+    --success:#15803D;
+    --success-soft:#EAF6EE;
+    --danger:#B42318;
+    --danger-soft:#FDEDEB;
+    --radius:4px;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    background:var(--bg-subtle);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:14px;
+    line-height:1.55;
+  }
+  code, .mono{ font-family:'IBM Plex Mono', monospace; }
+  h1,h2,h3{ margin:0; font-weight:600; letter-spacing:-0.01em; }
+  .wrap{ max-width:1100px; margin:0 auto; padding:0 28px; }
+
+  /* ---- top bar ---- */
+  .topbar{
+    background:var(--bg);
+    border-bottom:1px solid var(--border);
+  }
+  .topbar .wrap{
+    height:60px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:26px; height:26px; border-radius:3px;
+    background:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-weight:700; font-size:13px; font-family:'IBM Plex Mono';
+  }
+  .brand-name{ font-weight:600; font-size:15px; }
+  .brand-tag{ font-size:12px; color:var(--ink-faint); margin-left:2px; }
+
+  .topbar-right{ display:flex; align-items:center; gap:10px; }
+  .btn{
+    font-family:'IBM Plex Sans'; font-size:13px; font-weight:600;
+    padding:8px 14px; border-radius:var(--radius); cursor:pointer;
+    border:1px solid transparent; transition:background .12s ease;
+  }
+  .btn-primary{ background:var(--accent); color:#fff; }
+  .btn-primary:hover{ background:var(--accent-ink); }
+  .btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn-secondary{ background:#fff; color:var(--ink); border-color:var(--border-strong); }
+  .btn-secondary:hover{ background:var(--bg-subtle); }
+  .btn-ghost{ background:none; color:var(--accent); border:none; padding:6px 4px; }
+  .btn-ghost:hover{ text-decoration:underline; }
+
+  .wallet-pill{
+    display:none; align-items:center; gap:7px; font-size:12px; color:var(--ink-soft);
+    border:1px solid var(--border); border-radius:var(--radius); padding:6px 10px; background:var(--bg-subtle);
+  }
+  .wallet-dot{ width:7px; height:7px; border-radius:50%; background:var(--success); }
+
+  /* ---- page header / stats ---- */
+  .page-header{ padding:32px 0 0; }
+  .page-header h1{ font-size:21px; }
+  .page-header p{ margin:6px 0 0; color:var(--ink-soft); font-size:13.5px; max-width:620px; }
+
+  .stats-row{
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:1px;
+    background:var(--border); border:1px solid var(--border); border-radius:6px;
+    overflow:hidden; margin:24px 0;
+  }
+  .stat-cell{ background:#fff; padding:16px 20px; }
+  .stat-label{ font-size:12px; color:var(--ink-faint); }
+  .stat-value{ font-family:'IBM Plex Mono'; font-size:20px; font-weight:500; margin-top:4px; }
+
+  /* ---- config panel ---- */
+  .config-panel{
+    background:#fff; border:1px solid var(--border); border-radius:6px;
+    padding:16px 20px; margin-bottom:24px; display:none;
+  }
+  .config-panel.open{ display:block; }
+  .config-panel .field-row{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+  .field{ display:flex; flex-direction:column; gap:6px; flex:1; min-width:280px; }
+  .field label{ font-size:12px; font-weight:600; color:var(--ink-soft); }
+  .field input, .field textarea{
+    font-family:'IBM Plex Mono'; font-size:13px; border:1px solid var(--border-strong);
+    border-radius:var(--radius); padding:9px 10px; background:#fff; color:var(--ink);
+  }
+  .config-panel .helper{ font-size:12px; color:var(--ink-faint); margin-top:10px; font-family:'IBM Plex Sans'; }
+
+  /* ---- section header with actions ---- */
+  .section-bar{
+    display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;
+  }
+  .section-bar h2{ font-size:15px; }
+  .section-actions{ display:flex; gap:8px; }
+
+  /* ---- create panel ---- */
+  .create-panel{
+    background:#fff; border:1px solid var(--border); border-radius:6px;
+    padding:20px; margin-bottom:24px; display:none;
+  }
+  .create-panel.open{ display:block; }
+  .create-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .create-grid .full{ grid-column:1/-1; }
+  .create-grid label{ font-size:12px; font-weight:600; color:var(--ink-soft); display:block; margin-bottom:6px; }
+  .create-grid input, .create-grid textarea, .create-grid select{
+    width:100%; font-family:'IBM Plex Sans'; font-size:13.5px; border:1px solid var(--border-strong);
+    border-radius:var(--radius); padding:10px 11px; background:#fff; color:var(--ink);
+  }
+  .create-grid textarea{ min-height:76px; resize:vertical; }
+  .create-footer{
+    grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; margin-top:4px;
+  }
+  .status-text{ font-size:12.5px; color:var(--success); }
+  .status-text.error{ color:var(--danger); }
+
+  /* ---- table ---- */
+  .table-card{
+    background:#fff; border:1px solid var(--border); border-radius:6px; overflow:hidden; margin-bottom:40px;
+  }
+  table{ width:100%; border-collapse:collapse; }
+  thead th{
+    text-align:left; font-size:12px; font-weight:600; color:var(--ink-soft);
+    padding:11px 16px; border-bottom:1px solid var(--border); background:var(--bg-subtle);
+  }
+  thead th.num{ text-align:right; }
+  tbody td{ padding:14px 16px; border-bottom:1px solid var(--border); vertical-align:top; font-size:13.5px; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr.campaign-row{ cursor:pointer; }
+  tbody tr.campaign-row:hover{ background:var(--bg-subtle); }
+
+  .cell-title{ font-weight:600; color:var(--ink); }
+  .cell-sub{ color:var(--ink-faint); font-size:12px; margin-top:3px; }
+  .cell-owner{ font-family:'IBM Plex Mono'; font-size:12.5px; color:var(--ink-soft); }
+
+  .progress-cell{ min-width:140px; }
+  .progress-figures{ display:flex; justify-content:space-between; font-family:'IBM Plex Mono'; font-size:12px; color:var(--ink-soft); margin-bottom:5px; }
+  .bar-track{ height:6px; background:var(--bg-subtle); border-radius:3px; overflow:hidden; border:1px solid var(--border); }
+  .bar-fill{ height:100%; background:var(--accent); }
+
+  .badge{
+    display:inline-block; font-size:11px; font-weight:600; padding:3px 8px; border-radius:3px;
+  }
+  .badge-active{ background:var(--accent-soft); color:var(--accent-ink); }
+  .badge-ended{ background:var(--bg-subtle); color:var(--ink-faint); border:1px solid var(--border); }
+  .badge-funded{ background:var(--success-soft); color:var(--success); }
+
+  .detail-row td{ background:var(--bg-subtle); padding:0; }
+  .detail-inner{ padding:18px 16px 22px; display:none; }
+  .detail-inner.open{ display:block; }
+  .detail-desc{ font-size:13.5px; color:var(--ink-soft); max-width:640px; margin-bottom:14px; }
+  .detail-meta{ display:flex; gap:22px; flex-wrap:wrap; font-size:12px; color:var(--ink-faint); margin-bottom:16px; }
+  .detail-meta code{ background:#fff; border:1px solid var(--border); padding:2px 6px; border-radius:3px; }
+
+  .detail-actions{ display:flex; gap:24px; flex-wrap:wrap; align-items:flex-end; }
+  .action-group{ display:flex; gap:8px; align-items:flex-end; }
+  .action-group .field input{ width:110px; }
+  .action-group label{ font-size:11px; color:var(--ink-faint); display:block; margin-bottom:5px; }
+
+  .empty-state{ padding:36px 16px; text-align:center; color:var(--ink-faint); font-size:13.5px; }
+
+  footer{ padding:28px 0 40px; text-align:center; font-size:12px; color:var(--ink-faint); }
+  footer a{ color:var(--ink-soft); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">
+      <div class="brand-mark">C</div>
+      <span class="brand-name">Commons</span>
+      <span class="brand-tag">Campaign Ledger</span>
+    </div>
+    <div class="topbar-right">
+      <span id="walletBadge" class="wallet-pill"><span class="wallet-dot"></span><span id="walletAddr"></span></span>
+      <button id="settingsBtn" class="btn btn-secondary">Network settings</button>
+      <button id="connectBtn" class="btn btn-primary">Connect wallet</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="page-header">
+    <h1>Fundraising campaigns</h1>
+    <p>Every campaign below is an independently owned smart contract. Funds are held by the campaign contract itself — this interface only reads from and writes to the chain, it never custodies anything.</p>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-cell">
+      <div class="stat-label">Campaigns loaded</div>
+      <div class="stat-value" id="statCount">—</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Total raised</div>
+      <div class="stat-value" id="statRaised" style="font-size:15px;">—</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-label">Network</div>
+      <div class="stat-value" id="statNetwork">Not connected</div>
+    </div>
+  </div>
+
+  <div class="config-panel" id="configPanel">
+    <div class="field-row">
+      <div class="field">
+        <label for="factoryInput">Factory contract address</label>
+        <input id="factoryInput" placeholder="0x..." />
+      </div>
+      <button id="loadBtn" class="btn btn-primary">Load campaigns</button>
+    </div>
+    <div class="helper">Deploy <code>CampaignFactory.sol</code> once per network (Remix, Hardhat, or Foundry) and paste its address here. This interface works against any EVM network your wallet is connected to.</div>
+  </div>
+
+  <div class="section-bar">
+    <h2>Open campaigns</h2>
+    <div class="section-actions">
+      <button id="newCampaignBtn" class="btn btn-secondary">New campaign</button>
+    </div>
+  </div>
+
+  <div class="create-panel" id="createPanel">
+    <form id="createForm" class="create-grid">
+      <div>
+        <label for="titleInput">Title</label>
+        <input id="titleInput" required placeholder="Rebuild the community library roof" />
+      </div>
+      <div>
+        <label for="tokenSelect">Funding token</label>
+        <select id="tokenSelect" required></select>
+      </div>
+      <div class="full">
+        <label for="descInput">Description</label>
+        <textarea id="descInput" required placeholder="What the funds are for and who it helps."></textarea>
+      </div>
+      <div>
+        <label for="goalInput">Goal</label>
+        <input id="goalInput" required type="number" step="0.000001" min="0" placeholder="2.5" />
+      </div>
+      <div>
+        <label for="durationInput">Duration (days)</label>
+        <input id="durationInput" required type="number" min="1" value="30" />
+      </div>
+      <div class="create-footer">
+        <span class="status-text" id="createStatus"></span>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-secondary" id="cancelCreateBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="createBtn">Deploy campaign</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="table-card">
+    <table>
+      <thead>
+        <tr>
+          <th>Campaign</th>
+          <th>Owner</th>
+          <th>Status</th>
+          <th class="num">Raised / Goal</th>
+        </tr>
+      </thead>
+      <tbody id="campaignBody">
+        <tr><td colspan="4" class="empty-state">Open network settings and load a factory address to see campaigns.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>Commons is a non-custodial interface. Verify contract addresses independently before sending funds.</footer>
+
+<script>
+const FACTORY_ABI = [
+  "function createCampaign(string _title, string _description, uint256 _goal, uint256 _durationInDays, uint8 _paymentToken) external returns (address)",
+  "function getAllCampaigns() external view returns (address[])",
+  "function botToken() external view returns (address)",
+  "function usdtToken() external view returns (address)"
+];
+const CAMPAIGN_ABI = [
+  "function donate(uint256 amount) external payable",
+  "function withdraw() external",
+  "function refund() external",
+  "function getDetails() external view returns (address owner, address token, string title, string description, uint256 goal, uint256 deadline, uint256 totalRaised, uint256 balance, bool claimed)"
+];
+const ERC20_ABI = [
+  "function approve(address spender, uint256 amount) external returns (bool)",
+  "function allowance(address owner, address spender) external view returns (uint256)",
+  "function balanceOf(address account) external view returns (uint256)",
+  "function decimals() external view returns (uint8)",
+  "function symbol() external view returns (string)"
+];
+
+// PaymentToken enum order must match CampaignFactory.sol: 0 = BOT, 1 = USDT
+const TOKEN_CHOICES = [
+  { id: 0, key: 'BOT' },
+  { id: 1, key: 'USDT' }
+];
+
+// tokenAddress (lowercased) -> { address, symbol, decimals }
+const tokenInfo = {};
+
+// Deployed CampaignFactory this platform points to by default.
+// NOTE: CampaignFactory's constructor now takes a single `usdtToken`
+// address (BOT is hardcoded as address(0), the chain's native currency),
+// and createCampaign's signature changed — a factory deployed from an
+// earlier version of these contracts will NOT work here. Redeploy and
+// replace this address. See README.md.
+const DEFAULT_FACTORY_ADDRESS = "0x3bfED51F8F88cFAdDC13EfeB18e6D6e9aD33EE47";
+
+let provider, signer, userAddress, factory;
+
+const connectBtn = document.getElementById('connectBtn');
+const walletBadge = document.getElementById('walletBadge');
+const walletAddr = document.getElementById('walletAddr');
+const settingsBtn = document.getElementById('settingsBtn');
+const configPanel = document.getElementById('configPanel');
+const factoryInput = document.getElementById('factoryInput');
+const loadBtn = document.getElementById('loadBtn');
+const newCampaignBtn = document.getElementById('newCampaignBtn');
+const createPanel = document.getElementById('createPanel');
+const cancelCreateBtn = document.getElementById('cancelCreateBtn');
+const tokenSelect = document.getElementById('tokenSelect');
+const createForm = document.getElementById('createForm');
+const createStatus = document.getElementById('createStatus');
+const campaignBody = document.getElementById('campaignBody');
+const statCount = document.getElementById('statCount');
+const statRaised = document.getElementById('statRaised');
+const statNetwork = document.getElementById('statNetwork');
+
+const shortAddr = a => a.slice(0,6) + '…' + a.slice(-4);
+
+settingsBtn.addEventListener('click', () => configPanel.classList.toggle('open'));
+newCampaignBtn.addEventListener('click', () => createPanel.classList.toggle('open'));
+cancelCreateBtn.addEventListener('click', () => createPanel.classList.remove('open'));
+
+connectBtn.addEventListener('click', async () => {
+  if (!window.ethereum) { alert('No wallet found. Install MetaMask or another EVM wallet.'); return; }
+  try {
+    provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send('eth_requestAccounts', []);
+    signer = await provider.getSigner();
+    userAddress = await signer.getAddress();
+    walletBadge.style.display = 'inline-flex';
+    walletAddr.textContent = shortAddr(userAddress);
+    connectBtn.textContent = 'Connected';
+    connectBtn.disabled = true;
+    const net = await provider.getNetwork();
+    statNetwork.textContent = net.name === 'unknown' ? ('Chain ' + net.chainId) : net.name;
+    if (factory) refreshCampaigns();
+  } catch (err) {
+    console.error(err);
+    alert('Could not connect wallet.');
+  }
+});
+
+function normalizeAddress(addr) {
+  try { return ethers.getAddress(addr.trim().toLowerCase()); }
+  catch { return null; }
+}
+
+async function loadTokenMetadata(rpc) {
+  const [botAddr, usdtAddr] = await Promise.all([factory.botToken(), factory.usdtToken()]);
+
+  // BOT is this chain's native currency (address(0)) — no ERC20 contract to
+  // query symbol/decimals from, so it's fixed here.
+  tokenInfo[botAddr.toLowerCase()] = { address: botAddr, symbol: 'BOT', decimals: 18 };
+  TOKEN_CHOICES.find(t => t.key === 'BOT').address = botAddr;
+
+  const usdtC = new ethers.Contract(usdtAddr, ERC20_ABI, rpc);
+  let symbol = 'USDT', decimals = 18;
+  try { symbol = await usdtC.symbol(); } catch { /* fall back to USDT */ }
+  try { decimals = await usdtC.decimals(); } catch { /* fall back to 18 */ }
+  tokenInfo[usdtAddr.toLowerCase()] = { address: usdtAddr, symbol, decimals: Number(decimals) };
+  TOKEN_CHOICES.find(t => t.key === 'USDT').address = usdtAddr;
+
+  tokenSelect.innerHTML = TOKEN_CHOICES
+    .map(t => `<option value="${t.id}">${tokenInfo[t.address.toLowerCase()].symbol}</option>`)
+    .join('');
+}
+
+async function loadFactory(addr) {
+  const checksummed = normalizeAddress(addr);
+  if (!checksummed) { alert('Enter a valid factory contract address.'); return; }
+  if (!provider) {
+    if (!window.ethereum) { alert('No wallet/provider found in this browser.'); return; }
+    provider = new ethers.BrowserProvider(window.ethereum);
+  }
+  factoryInput.value = checksummed;
+  factory = new ethers.Contract(checksummed, FACTORY_ABI, signer || provider);
+  await loadTokenMetadata(signer || provider);
+  await refreshCampaigns();
+}
+
+loadBtn.addEventListener('click', async () => {
+  await loadFactory(factoryInput.value);
+  configPanel.classList.remove('open');
+});
+
+// Auto-load the platform's default factory on page open, read-only,
+// without prompting a wallet connection. Donating/withdrawing still
+// requires the user to connect first.
+(async function init() {
+  factoryInput.value = DEFAULT_FACTORY_ADDRESS;
+  if (window.ethereum) {
+    try {
+      provider = new ethers.BrowserProvider(window.ethereum);
+      await loadFactory(DEFAULT_FACTORY_ADDRESS);
+    } catch (err) {
+      console.error(err);
+      campaignBody.innerHTML = '<tr><td colspan="4" class="empty-state">Could not reach the network. Connect your wallet to retry.</td></tr>';
+    }
+  } else {
+    campaignBody.innerHTML = '<tr><td colspan="4" class="empty-state">Install a wallet (e.g. MetaMask) to view live campaigns.</td></tr>';
+  }
+})();
+
+createForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!signer) { setStatus('Connect your wallet first.', true); return; }
+  if (!factory) { setStatus('Load a factory address first.', true); return; }
+
+  const title = document.getElementById('titleInput').value.trim();
+  const description = document.getElementById('descInput').value.trim();
+  const goalAmount = document.getElementById('goalInput').value;
+  const duration = document.getElementById('durationInput').value;
+  const tokenChoiceId = Number(tokenSelect.value);
+  const chosen = TOKEN_CHOICES.find(t => t.id === tokenChoiceId);
+  const decimals = tokenInfo[chosen.address.toLowerCase()].decimals;
+  const createBtn = document.getElementById('createBtn');
+
+  createBtn.disabled = true;
+  setStatus('Confirm the deployment in your wallet…', false);
+  try {
+    const factoryWithSigner = factory.connect(signer);
+    const goalUnits = ethers.parseUnits(goalAmount, decimals);
+    const tx = await factoryWithSigner.createCampaign(title, description, goalUnits, duration, tokenChoiceId);
+    setStatus('Deploying — waiting for confirmation…', false);
+    await tx.wait();
+    setStatus('Campaign deployed.', false);
+    createForm.reset();
+    document.getElementById('durationInput').value = 30;
+    createPanel.classList.remove('open');
+    await refreshCampaigns();
+  } catch (err) {
+    console.error(err);
+    setStatus(err.shortMessage || 'Deployment failed.', true);
+  } finally {
+    createBtn.disabled = false;
+  }
+});
+
+function setStatus(msg, isError) {
+  createStatus.textContent = msg;
+  createStatus.className = 'status-text' + (isError ? ' error' : '');
+}
+
+async function refreshCampaigns() {
+  campaignBody.innerHTML = '<tr><td colspan="4" class="empty-state">Loading campaigns…</td></tr>';
+  try {
+    const addresses = await factory.getAllCampaigns();
+    statCount.textContent = addresses.length;
+    if (addresses.length === 0) {
+      campaignBody.innerHTML = '<tr><td colspan="4" class="empty-state">No campaigns yet. Use "New campaign" to deploy the first one.</td></tr>';
+      statRaised.textContent = '—';
+      return;
+    }
+    const rpc = signer || provider;
+    const details = await Promise.all(addresses.map(a => new ethers.Contract(a, CAMPAIGN_ABI, rpc).getDetails()));
+
+    // Totals per token, since BOT and USDT amounts can't be summed together.
+    const totalsByToken = {};
+    details.forEach(d => {
+      const key = d.token.toLowerCase();
+      totalsByToken[key] = (totalsByToken[key] || 0n) + d.totalRaised;
+    });
+    statRaised.innerHTML = Object.entries(totalsByToken).map(([tokenAddr, total]) => {
+      const info = tokenInfo[tokenAddr] || { symbol: '?', decimals: 18 };
+      return `${ethers.formatUnits(total, info.decimals)} ${info.symbol}`;
+    }).join(' · ');
+
+    const rowsHtml = addresses.map((addr, i) => buildRow(addr, details[i], i)).join('');
+    campaignBody.innerHTML = rowsHtml;
+    attachRowHandlers(addresses, details);
+  } catch (err) {
+    console.error(err);
+    campaignBody.innerHTML = '<tr><td colspan="4" class="empty-state">Could not load campaigns. Check the factory address and network.</td></tr>';
+  }
+}
+
+function buildRow(address, d, i) {
+  const info = tokenInfo[d.token.toLowerCase()] || { symbol: '?', decimals: 18 };
+  const goalFmt = ethers.formatUnits(d.goal, info.decimals);
+  const raisedFmt = ethers.formatUnits(d.totalRaised, info.decimals);
+  const pct = d.goal > 0n ? Math.min(100, Number(d.totalRaised * 100n / d.goal)) : 0;
+  const deadlineDate = new Date(Number(d.deadline) * 1000);
+  const ended = Date.now() > deadlineDate.getTime();
+  const funded = d.totalRaised >= d.goal;
+  const isOwner = userAddress && d.owner.toLowerCase() === userAddress.toLowerCase();
+
+  let badge = '<span class="badge badge-active">Active</span>';
+  if (funded) badge = '<span class="badge badge-funded">Funded</span>';
+  else if (ended) badge = '<span class="badge badge-ended">Ended</span>';
+
+  const detailActions = `
+    ${!ended ? `
+    <div class="action-group">
+      <div class="field"><label>Amount (${info.symbol})</label><input type="number" step="0.000001" min="0" class="donate-amount" placeholder="50" /></div>
+      <button class="btn btn-primary donate-btn">Fund campaign</button>
+    </div>` : ''}
+    ${isOwner ? `
+    <div class="action-group">
+      <button class="btn btn-secondary withdraw-btn">${d.claimed ? 'Withdrawn' : 'Withdraw balance'}</button>
+    </div>` : ''}
+    ${ended && !isOwner && !funded ? `
+    <div class="action-group"><button class="btn btn-secondary refund-btn">Request refund</button></div>` : ''}
+  `;
+
+  return `
+    <tr class="campaign-row" data-idx="${i}">
+      <td>
+        <div class="cell-title">${escapeHtml(d.title)}</div>
+        <div class="cell-sub">${ended ? 'Ended' : 'Ends'} ${deadlineDate.toLocaleDateString()}</div>
+      </td>
+      <td><span class="cell-owner">${shortAddr(d.owner)}</span></td>
+      <td>${badge}</td>
+      <td class="progress-cell">
+        <div class="progress-figures"><span>${raisedFmt} ${info.symbol}</span><span>${goalFmt} ${info.symbol}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      </td>
+    </tr>
+    <tr class="detail-row">
+      <td colspan="4">
+        <div class="detail-inner" id="detail-${i}">
+          <div class="detail-desc">${escapeHtml(d.description)}</div>
+          <div class="detail-meta">
+            <span>Contract <code>${address}</code></span>
+            <span>Owner <code>${d.owner}</code></span>
+            <span>Token <code>${info.symbol}</code> ${d.token === ethers.ZeroAddress ? '<code>native</code>' : `<code>${d.token}</code>`}</span>
+          </div>
+          <div class="detail-actions">${detailActions}</div>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function attachRowHandlers(addresses, details) {
+  document.querySelectorAll('.campaign-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const idx = row.getAttribute('data-idx');
+      document.getElementById('detail-' + idx).classList.toggle('open');
+    });
+  });
+
+  addresses.forEach((address, i) => {
+    const scope = document.getElementById('detail-' + i);
+    if (!scope) return;
+    const d = details[i];
+    const info = tokenInfo[d.token.toLowerCase()] || { symbol: '?', decimals: 18 };
+
+    const donateBtn = scope.querySelector('.donate-btn');
+    if (donateBtn) donateBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!signer) { alert('Connect your wallet first.'); return; }
+      const input = scope.querySelector('.donate-amount');
+      if (!input.value || Number(input.value) <= 0) { alert('Enter an amount to donate.'); return; }
+      const amount = ethers.parseUnits(input.value, info.decimals);
+      const isNative = d.token === ethers.ZeroAddress;
+
+      donateBtn.disabled = true;
+      try {
+        const campaignC = new ethers.Contract(address, CAMPAIGN_ABI, signer);
+
+        if (isNative) {
+          donateBtn.textContent = 'Sending…';
+          const tx = await campaignC.donate(amount, { value: amount });
+          await tx.wait();
+        } else {
+          const tokenC = new ethers.Contract(d.token, ERC20_ABI, signer);
+          const currentAllowance = await tokenC.allowance(userAddress, address);
+          if (currentAllowance < amount) {
+            donateBtn.textContent = 'Approving…';
+            const approveTx = await tokenC.approve(address, amount);
+            await approveTx.wait();
+          }
+          donateBtn.textContent = 'Sending…';
+          const tx = await campaignC.donate(amount);
+          await tx.wait();
+        }
+
+        await refreshCampaigns();
+      } catch (err) {
+        console.error(err);
+        alert(err.shortMessage || 'Donation failed.');
+        donateBtn.disabled = false;
+        donateBtn.textContent = 'Fund campaign';
+      }
+    });
+
+    const withdrawBtn = scope.querySelector('.withdraw-btn');
+    if (withdrawBtn) withdrawBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      withdrawBtn.disabled = true;
+      try {
+        const c = new ethers.Contract(address, CAMPAIGN_ABI, signer);
+        const tx = await c.withdraw();
+        await tx.wait();
+        await refreshCampaigns();
+      } catch (err) {
+        console.error(err);
+        alert(err.shortMessage || 'Withdraw failed.');
+        withdrawBtn.disabled = false;
+      }
+    });
+
+    const refundBtn = scope.querySelector('.refund-btn');
+    if (refundBtn) refundBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      refundBtn.disabled = true;
+      try {
+        const c = new ethers.Contract(address, CAMPAIGN_ABI, signer);
+        const tx = await c.refund();
+        await tx.wait();
+        await refreshCampaigns();
+      } catch (err) {
+        console.error(err);
+        alert(err.shortMessage || 'Refund failed.');
+        refundBtn.disabled = false;
+      }
+    });
+  });
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+
+</body>
+</html>
