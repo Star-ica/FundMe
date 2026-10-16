@@ -289,7 +289,13 @@
 
 </div>
 
-<footer>Commons is a non-custodial interface. Verify contract addresses independently before sending funds.</footer>
+<footer>
+  <span>Commons — non-custodial interface. Verify contract addresses independently before sending funds.</span>
+  <span style="margin:0 8px;opacity:.4">·</span>
+  <span>Powered by <a href="http://botchain.ai" target="_blank" rel="noopener">BOT Chain</a> &nbsp;·&nbsp; Chain ID 677 (Mainnet)</span>
+  <span style="margin:0 8px;opacity:.4">·</span>
+  <a href="http://scan.botchain.ai" target="_blank" rel="noopener">Block Explorer</a>
+</footer>
 
 <script>
 const FACTORY_ABI = [
@@ -327,7 +333,7 @@ const tokenInfo = {};
 // and createCampaign's signature changed — a factory deployed from an
 // earlier version of these contracts will NOT work here. Redeploy and
 // replace this address. See README.md.
-const DEFAULT_FACTORY_ADDRESS = "0x3bfED51F8F88cFAdDC13EfeB18e6D6e9aD33EE47";
+const DEFAULT_FACTORY_ADDRESS = "0x96d51851Fe268Cc1F19C072269Bc0abCa9118478";
 
 let provider, signer, userAddress, factory;
 
